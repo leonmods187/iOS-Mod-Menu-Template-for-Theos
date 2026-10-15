@@ -17,27 +17,25 @@ jobs:
         export THEOS=$HOME/theos
         git clone --recursive https://github.com/theos/theos.git $THEOS
 
-        # SDKs laden (enthält iPhoneOS11.2.sdk)
-        mkdir -p $THEOS/sdks
-        git clone --depth=1 https://github.com/theos/sdks.git $THEOS/sdks_temp
+    - name: Setup SDKs
+      run: |
+        export THEOS=$HOME/theos
+        git clone --depth=1 https://github.com/theos/sdks.git $THEOS/sdks
+        ls $THEOS/sdks | head -20
 
-        # initializer_list ins SDK kopieren (Pflicht laut Template-README!)
-        curl -fsSL -o /tmp/initializer_list \
-          "https://raw.githubusercontent.com/gcc-mirror/gcc/releases/gcc-4.8.4/libstdc++-v3/include/precompiled/stdc++.h" 2>/dev/null || true
-        # Falls das Template einen eigenen Link zur initializer_list nutzt,
-        # stattdessen diese herunterladen und nach unten kopieren
-        mkdir -p "$THEOS/sdks/iPhoneOS11.2.sdk/usr/include/c++/4.2.1" 2>/dev/null || true
+    - name: Verify Setup
+      run: |
+        export THEOS=$HOME/theos
+        test -f $THEOS/makefiles/common.mk && echo "OK: common.mk gefunden" || (echo "FEHLER: theos nicht korrekt gecloned"; exit 1)
 
     - name: Compile
       run: |
         export THEOS=$HOME/theos
-        # WICHTIG: MOBILE_THEOS=1 (iOS!), KEIN rootless-Scheme
-        make package MOBILE_THEOS=1 THEOS=$THEOS
+        make package MOBILE_THEOS=0 ARCHS=arm64 THEOS=$THEOS
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: ModMenu-Deb
-        path: packages/*.deb        # ← Theos legt deb hier ab!
-        if-no-files-found: error    # ← schlägt ALARM wenn kein deb gebaut wurde
-
+        path: packages/*.deb
+        if-no-files-found: error
