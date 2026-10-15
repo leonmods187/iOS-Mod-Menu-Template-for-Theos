@@ -3,7 +3,7 @@ DEBUG = 0
 FINALPACKAGE = 1
 FOR_RELEASE = 1
 
-# 1 = Warnungen ignorieren (im CI sinnvoll, damit Warnungen den Build nicht stoppen)
+# 1 = Warnungen ignorieren
 IGNORE_WARNINGS = 1
 
 # 0 = rootful, 1 = rootless
@@ -13,7 +13,9 @@ ifeq ($(ROOTLESS), 1)
 THEOS_PACKAGE_SCHEME = rootless
 endif
 
-TARGET = iphone:clang:latest:11.0
+# Auf dem Mac (GitHub Actions) immer 0
+MOBILE_THEOS = 0
+TARGET = iphone:clang:latest:13.0
 
 PROJ_COMMON_FRAMEWORKS = UIKit Foundation Security QuartzCore CoreGraphics CoreText
 
@@ -40,4 +42,5 @@ ModMenu_FRAMEWORKS = $(PROJ_COMMON_FRAMEWORKS)
 include $(THEOS_MAKE_PATH)/tweak.mk
 
 after-install::
+	install.exec "killall -9 MechArena || :"
 	install.exec "killall -9 MechArena || :"
