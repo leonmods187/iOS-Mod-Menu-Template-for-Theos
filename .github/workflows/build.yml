@@ -12,19 +12,18 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Setup Theos and Build
+    - name: Setup Theos and Compile
       run: |
         export THEOS=$HOME/theos
         git clone --recursive https://github.com/theos/theos.git $THEOS
         
-        # SDK herunterladen, damit der Compiler nicht abbricht
+        # SDKs vorbereiten
         mkdir -p $THEOS/sdks
-        git clone --depth=1 https://github.com/theos/sdks.git $THEOS/sdks_temp
-        mv $THEOS/sdks_temp/* $THEOS/sdks/
-        rm -rf $THEOS/sdks_temp
+        git clone --depth=1 https://github.com/theos/sdks.git $THEOS/sdks_temp || true
+        cp -r $THEOS/sdks_temp/* $THEOS/sdks/ 2>/dev/null || true
         
-        # Projekt kompilieren (unterdrückt Fehler bei fehlenden optionalen Verknüpfungen)
-        make package THEOS_PACKAGE_SCHEME=rootless MOBILE_THEOS=0 IGNORE_WARNINGS=1 || make package MOBILE_THEOS=0 IGNORE_WARNINGS=1
+        # Make mit explizitem THEOS-Pfad ausführen
+        make package THEOS_PACKAGE_SCHEME=rootless MOBILE_THEOS=0 THEOS=$THEOS
       env:
         THEOS: /Users/runner/theos
 
