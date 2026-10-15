@@ -1,1 +1,1 @@
-{ Filter = { Bundles = ( "@@FILTER@@" ); }; }
+{ Filter = { Bundles = ( "com.plarium.mechlegion" ); }; }
