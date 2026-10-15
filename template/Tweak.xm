@@ -87,3 +87,8 @@ void setupMenu() {
 
   installSpeedHook();
 }
+
+// ================== INITIALISIERUNG ==================
+%ctor {
+    setupMenu();
+}
