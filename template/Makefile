@@ -20,7 +20,7 @@ endif
 # if some c++ headers are still missing in your sdk like "initializer_list" then manually copy them to your c++ headers directory and not your project folder
 # for example in my case c++ headers directory is located at /private/var/theos/sdks/iPhoneOS11.2.sdk/usr/include/c++/4.2.1/
 # please note, do not include c++ headers in your theos includes to enable c++ which is a ghetto solution and use this approach instead
-MOBILE_THEOS=1
+MOBILE_THEOS=0
 ifeq ($(MOBILE_THEOS),1)
   # path to your sdk
   SDK_PATH = $(THEOS)/sdks/iPhoneOS11.2.sdk/
