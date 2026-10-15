@@ -10,8 +10,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 30
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
     - name: Install dependencies
       run: brew install ldid dpkg make
@@ -19,22 +18,24 @@ jobs:
     - name: Setup Theos
       run: |
         git clone --recursive --depth=1 https://github.com/theos/theos.git $HOME/theos
-        git clone --depth=1 https://github.com/theos/sdks.git $HOME/theos/sdks
         echo "THEOS=$HOME/theos" >> $GITHUB_ENV
         echo "$(brew --prefix make)/libexec/gnubin" >> $GITHUB_PATH
 
-    - name: Verify Setup
+    - name: Prepare project files
+      working-directory: template
       run: |
-        test -f $THEOS/makefiles/common.mk && echo "OK: common.mk gefunden"
-        ls $THEOS/sdks
-        make --version | head -1
+        if [ -f '@@PROJECTNAME@@.plist' ]; then mv '@@PROJECTNAME@@.plist' ModMenu.plist; fi
+        ls -la
+        echo "--- Platzhalter-Check (sollte 'keine' ausgeben):"
+        grep -n '@@' Makefile control ModMenu.plist || echo "keine"
 
     - name: Compile
+      working-directory: template
       run: make package FINALPACKAGE=1
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: ModMenu-Deb
-        path: packages/*.deb
+        path: template/packages/*.deb
         if-no-files-found: error
