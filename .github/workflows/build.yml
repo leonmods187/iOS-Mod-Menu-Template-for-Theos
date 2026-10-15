@@ -7,31 +7,30 @@ on:
 
 jobs:
   build:
-    runs-on: macos-13
+    runs-on: macos-latest
+    timeout-minutes: 30
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
 
+    - name: Install dependencies
+      run: brew install ldid dpkg make
+
     - name: Setup Theos
       run: |
-        export THEOS=$HOME/theos
-        git clone --recursive https://github.com/theos/theos.git $THEOS
-
-    - name: Setup SDKs
-      run: |
-        export THEOS=$HOME/theos
-        git clone --depth=1 https://github.com/theos/sdks.git $THEOS/sdks
-        ls $THEOS/sdks | head -20
+        git clone --recursive --depth=1 https://github.com/theos/theos.git $HOME/theos
+        git clone --depth=1 https://github.com/theos/sdks.git $HOME/theos/sdks
+        echo "THEOS=$HOME/theos" >> $GITHUB_ENV
+        echo "$(brew --prefix make)/libexec/gnubin" >> $GITHUB_PATH
 
     - name: Verify Setup
       run: |
-        export THEOS=$HOME/theos
-        test -f $THEOS/makefiles/common.mk && echo "OK: common.mk gefunden" || (echo "FEHLER: theos nicht korrekt gecloned"; exit 1)
+        test -f $THEOS/makefiles/common.mk && echo "OK: common.mk gefunden"
+        ls $THEOS/sdks
+        make --version | head -1
 
     - name: Compile
-      run: |
-        export THEOS=$HOME/theos
-        make package MOBILE_THEOS=0 ARCHS=arm64 THEOS=$THEOS
+      run: make package FINALPACKAGE=1
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
