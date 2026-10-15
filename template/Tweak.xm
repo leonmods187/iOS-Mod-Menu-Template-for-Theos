@@ -3,7 +3,7 @@
 #import <string.h>
 #import "Macros.h"
 
-// ---------- Hilfsfunktion: Basisadresse eines geladenen Images ----------
+// ---------- Basisadresse eines geladenen Images ----------
 static uintptr_t getImageBase(const char *name) {
     for (uint32_t i = 0; i < _dyld_image_count(); i++) {
         const char *n = _dyld_get_image_name(i);
@@ -32,7 +32,7 @@ static void installSpeedHook() {
                        (void *)hook_SetCurrentSpeed,
                        (void **)&orig_SetCurrentSpeed);
     } else {
-        // UnityFramework noch nicht geladen -> in 3 Sekunden nochmal versuchen
+        // UnityFramework noch nicht geladen: in 3 Sekunden nochmal versuchen
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 3 * NSEC_PER_SEC),
                        dispatch_get_main_queue(), ^{
             installSpeedHook();
@@ -48,8 +48,8 @@ void setup() {
   [switches addOffsetSwitch:NSSENCRYPT("Kein Nachladen")
     description:NSSENCRYPT("Blockiert das Nachladen der Waffe")
     offsets: {
-      ENCRYPTOFFSET("0x4ADCA10"),   // TryStartReload
-      ENCRYPTOFFSET("0x4ADE150")    // TryForceReload
+      ENCRYPTOFFSET("0x4ADCA10"),
+      ENCRYPTOFFSET("0x4ADE150")
     }
     bytes: {
       ENCRYPTHEX("C0035FD6"),
