@@ -1,10 +1,10 @@
-Package: @@PACKAGENAME@@
-Name: @@APPNAME@@ Mod Menu
+Package: com.deinname.mechmodmenu
+Name: Mech Arena Mod Menu
 Depends: mobilesubstrate
-Version: @@APPVERSION@@
+Version: 1.0
 Architecture: iphoneos-arm
-Description: @@APPNAME@@ Mod Menu by @@USER@@!
-Maintainer: @@USER@@
-Author: @@USER@@
+Description: Mech Arena Mod Menu by DeinName
+Maintainer: DeinName
+Author: DeinName
 Section: Tweaks
-Homepage: @@SITE@@
+Homepage: https://github.com/leonmods187
