@@ -1,7 +1,14 @@
+#import <UIKit/UIKit.h>
 #import <substrate.h>
 #import <mach-o/dyld.h>
 #import <string.h>
 #import "Macros.h"
+
+// Auf 0 setzen, falls das Spiel nach dem Start abstuerzt (schaltet den Speedhack aus)
+#define ENABLE_SPEED_HOOK 1
+
+// Globale Variable aus Menu.mm (der schwebende Menue-Button)
+extern UIButton *menuButton;
 
 // ---------- Basisadresse eines geladenen Images ----------
 static uintptr_t getImageBase(const char *name) {
@@ -32,7 +39,6 @@ static void installSpeedHook() {
                        (void *)hook_SetCurrentSpeed,
                        (void **)&orig_SetCurrentSpeed);
     } else {
-        // UnityFramework noch nicht geladen: in 3 Sekunden nochmal versuchen
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 3 * NSEC_PER_SEC),
                        dispatch_get_main_queue(), ^{
             installSpeedHook();
@@ -83,12 +89,49 @@ void setupMenu() {
             menuIcon:@""
             menuButton:@""];
 
+  // Muss VOR setup() gesetzt werden, weil die Patches es dort brauchen
   [menu setFrameworkName:"UnityFramework"];
 
+  // Sichtbarer Menue-Button ohne Base64-Bild
+  if (menuButton) {
+    menuButton.backgroundColor = UIColorFromHex(0xBD0000);
+    menuButton.layer.cornerRadius = 25;
+    menuButton.layer.borderWidth = 2;
+    menuButton.layer.borderColor = [UIColor whiteColor].CGColor;
+    menuButton.clipsToBounds = YES;
+    [menuButton setTitle:@"M" forState:UIControlStateNormal];
+    [menuButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+  }
+
+#if ENABLE_SPEED_HOOK
   installSpeedHook();
+#endif
 }
 
-// ================== INITIALISIERUNG ==================
-%ctor {
-    setupMenu();
+// ================== START DES MENUES ==================
+static bool menuStarted = false;
+
+static void tryStartMenu(int attempt) {
+    if (menuStarted) return;
+
+    // Warten, bis das Spiel ein Fenster hat (max. ca. 30 Sekunden)
+    UIWindow *w = [UIApplication sharedApplication].keyWindow;
+    if (w == nil && attempt < 30) {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 1 * NSEC_PER_SEC),
+                       dispatch_get_main_queue(), ^{
+            tryStartMenu(attempt + 1);
+        });
+        return;
+    }
+
+    menuStarted = true;
+    setupMenu();   // erst das Menue erzeugen
+    setup();       // dann die Schalter hinzufuegen
+}
+
+__attribute__((constructor)) static void initialize() {
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 4 * NSEC_PER_SEC),
+                   dispatch_get_main_queue(), ^{
+        tryStartMenu(0);
+    });
 }
