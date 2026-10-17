@@ -19,6 +19,27 @@ static uintptr_t getImageBase(const char *name) {
     return 0;
 }
 
+// ===== Statusanzeige oben am Bildschirm (ohne Popup-Fenster) =====
+static void showStatus(NSString *text) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIWindow *w = [UIApplication sharedApplication].keyWindow;
+        if (!w) return;
+        UILabel *l = (UILabel *)[w viewWithTag:9191];
+        if (!l) {
+            l = [[UILabel alloc] initWithFrame:CGRectMake(10, 30, w.bounds.size.width - 20, 110)];
+            l.tag = 9191;
+            l.numberOfLines = 0;
+            l.backgroundColor = [UIColor colorWithWhite:0 alpha:0.8];
+            l.textColor = [UIColor greenColor];
+            l.font = [UIFont boldSystemFontOfSize:14];
+            l.userInteractionEnabled = NO;
+            [w addSubview:l];
+        }
+        l.text = text;
+        [w bringSubviewToFront:l];
+    });
+}
+
 // ===== Speed: MechView.get_RunSpeed (RVA 0x4A6E6A0) =====
 static float (*orig_get_RunSpeed)(void *self);
 
@@ -49,7 +70,7 @@ static void installSpeedHook() {
 static void runPatchTest() {
     uintptr_t base = getImageBase("UnityFramework");
     if (!base) {
-        [menu showPopup:@"Patch-Test" description:@"UnityFramework nicht gefunden (Base = 0)"];
+        showStatus(@"Patch-Test: UnityFramework nicht gefunden (Base = 0)");
         return;
     }
     uint8_t *p = (uint8_t *)(base + 0x4ADCA10);   // TryStartReload
@@ -60,9 +81,8 @@ static void runPatchTest() {
     bool valid = patch.isValid();
     bool ok = valid ? patch.Modify() : false;
 
-    [menu showPopup:@"Patch-Test"
-        description:[NSString stringWithFormat:@"Base: 0x%lx\nBytes: %s\nvalid: %d\nModify: %d",
-                     (unsigned long)base, hex, valid, ok]];
+    showStatus([NSString stringWithFormat:@"Tweak v3\nBase: 0x%lx\nBytes: %s\nvalid: %d  Modify: %d",
+                (unsigned long)base, hex, valid, ok]);
 }
 
 void setup() {
@@ -141,8 +161,11 @@ void setupMenu() {
     [menuButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
   }
 
-  // Patch-Test nach 8 Sekunden (= ca. 12 Sekunden nach App-Start)
-  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 8 * NSEC_PER_SEC),
+  // Sofort anzeigen: beweist, dass diese Version laeuft
+  showStatus(@"Tweak v3 geladen");
+
+  // Patch-Test nach 6 Sekunden
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 6 * NSEC_PER_SEC),
                  dispatch_get_main_queue(), ^{
       runPatchTest();
   });
