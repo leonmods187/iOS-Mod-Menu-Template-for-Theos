@@ -2,9 +2,9 @@
 #import <substrate.h>
 #import <mach-o/dyld.h>
 #import <string.h>
+#import <stdio.h>
 #import "Macros.h"
 
-// Speedhack: erst auf 1 setzen, wenn das Menue und die Schalter stabil laufen
 #define ENABLE_SPEED_HOOK 0
 
 extern UIButton *menuButton;
@@ -19,7 +19,7 @@ static uintptr_t getImageBase(const char *name) {
     return 0;
 }
 
-// ===== Speed: MechView.get_RunSpeed (RVA 0x4A6E6A0), float get_RunSpeed(MechView *self) =====
+// ===== Speed: MechView.get_RunSpeed (RVA 0x4A6E6A0) =====
 static float (*orig_get_RunSpeed)(void *self);
 
 static float hook_get_RunSpeed(void *self) {
@@ -45,9 +45,28 @@ static void installSpeedHook() {
     }
 }
 
+// ===== Patch-Test: schreibt die vorhandenen Bytes zurueck (aendert nichts) =====
+static void runPatchTest() {
+    uintptr_t base = getImageBase("UnityFramework");
+    if (!base) {
+        [menu showPopup:@"Patch-Test" description:@"UnityFramework nicht gefunden (Base = 0)"];
+        return;
+    }
+    uint8_t *p = (uint8_t *)(base + 0x4ADCA10);   // TryStartReload
+    char hex[9];
+    snprintf(hex, sizeof(hex), "%02X%02X%02X%02X", p[0], p[1], p[2], p[3]);
+
+    MemoryPatch patch = MemoryPatch::createWithHex("UnityFramework", 0x4ADCA10, std::string(hex));
+    bool valid = patch.isValid();
+    bool ok = valid ? patch.Modify() : false;
+
+    [menu showPopup:@"Patch-Test"
+        description:[NSString stringWithFormat:@"Base: 0x%lx\nBytes: %s\nvalid: %d\nModify: %d",
+                     (unsigned long)base, hex, valid, ok]];
+}
+
 void setup() {
 
-  // Offsets bestaetigt (WeaponComponentReload). Blockiert Nachladen komplett.
   [switches addOffsetSwitch:NSSENCRYPT("Reload blockieren")
     description:NSSENCRYPT("Blockiert TryStartReload und TryForceReload")
     offsets: {
@@ -60,13 +79,12 @@ void setup() {
     }
   ];
 
-  // WeaponComponentStats: Nachladezeiten auf 0 (float-Getter)
   [switches addOffsetSwitch:NSSENCRYPT("Sofort nachladen")
     description:NSSENCRYPT("Setzt die Nachladezeiten auf 0")
     offsets: {
-      ENCRYPTOFFSET("0x4AE5760"),   // get_ReloadTimeSec
-      ENCRYPTOFFSET("0x4ADD410"),   // get_AmmoReloadTimeout
-      ENCRYPTOFFSET("0x4AE1494")    // get_AmmoReloadMinTimeout
+      ENCRYPTOFFSET("0x4AE5760"),
+      ENCRYPTOFFSET("0x4ADD410"),
+      ENCRYPTOFFSET("0x4AE1494")
     }
     bytes: {
       ENCRYPTHEX("00E4002FC0035FD6"),
@@ -75,7 +93,6 @@ void setup() {
     }
   ];
 
-  // WeaponComponentStats.get_AmmoBullets (int): Magazin = 9999
   [switches addOffsetSwitch:NSSENCRYPT("Grosses Magazin")
     description:NSSENCRYPT("Magazingroesse 9999")
     offsets: {
@@ -124,12 +141,10 @@ void setupMenu() {
     [menuButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
   }
 
-  // Debug-Popup: zeigt, ob UnityFramework gefunden wird
-  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC),
+  // Patch-Test nach 8 Sekunden (= ca. 12 Sekunden nach App-Start)
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 8 * NSEC_PER_SEC),
                  dispatch_get_main_queue(), ^{
-      uintptr_t b = getImageBase("UnityFramework");
-      [menu showPopup:@"Debug"
-          description:[NSString stringWithFormat:@"UnityFramework Base: 0x%lx", (unsigned long)b]];
+      runPatchTest();
   });
 
 #if ENABLE_SPEED_HOOK
