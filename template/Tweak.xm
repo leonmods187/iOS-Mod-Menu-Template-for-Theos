@@ -5,8 +5,6 @@
 #import <stdio.h>
 #import "Macros.h"
 
-#define ENABLE_SPEED_HOOK 0
-
 extern UIButton *menuButton;
 
 static uintptr_t getImageBase(const char *name) {
@@ -19,19 +17,18 @@ static uintptr_t getImageBase(const char *name) {
     return 0;
 }
 
-// ===== Statusanzeige oben am Bildschirm (ohne Popup-Fenster) =====
 static void showStatus(NSString *text) {
     dispatch_async(dispatch_get_main_queue(), ^{
         UIWindow *w = [UIApplication sharedApplication].keyWindow;
         if (!w) return;
         UILabel *l = (UILabel *)[w viewWithTag:9191];
         if (!l) {
-            l = [[UILabel alloc] initWithFrame:CGRectMake(10, 30, w.bounds.size.width - 20, 110)];
+            l = [[UILabel alloc] initWithFrame:CGRectMake(10, 30, w.bounds.size.width - 20, 130)];
             l.tag = 9191;
             l.numberOfLines = 0;
             l.backgroundColor = [UIColor colorWithWhite:0 alpha:0.8];
             l.textColor = [UIColor greenColor];
-            l.font = [UIFont boldSystemFontOfSize:14];
+            l.font = [UIFont boldSystemFontOfSize:13];
             l.userInteractionEnabled = NO;
             [w addSubview:l];
         }
@@ -40,104 +37,29 @@ static void showStatus(NSString *text) {
     });
 }
 
-// ===== Speed: MechView.get_RunSpeed (RVA 0x4A6E6A0) =====
-static float (*orig_get_RunSpeed)(void *self);
-
-static float hook_get_RunSpeed(void *self) {
-    float v = orig_get_RunSpeed(self);
-    float mult = [[switches getValueFromSwitch:NSSENCRYPT("Mech Speed Multiplikator")] floatValue];
-    if (mult > 1.0f) {
-        v *= mult;
-    }
-    return v;
+static NSString *bytesAt(uintptr_t base, uint64_t off) {
+    uint8_t *p = (uint8_t *)(base + off);
+    return [NSString stringWithFormat:@"%02X%02X%02X%02X %02X%02X%02X%02X",
+            p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]];
 }
 
-static void installSpeedHook() {
-    uintptr_t base = getImageBase("UnityFramework");
-    if (base) {
-        MSHookFunction((void *)(base + 0x4A6E6A0),
-                       (void *)hook_get_RunSpeed,
-                       (void **)&orig_get_RunSpeed);
-    } else {
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 3 * NSEC_PER_SEC),
-                       dispatch_get_main_queue(), ^{
-            installSpeedHook();
-        });
-    }
-}
-
-// ===== Patch-Test: schreibt die vorhandenen Bytes zurueck (aendert nichts) =====
-static void runPatchTest() {
+static void runReadTest() {
     uintptr_t base = getImageBase("UnityFramework");
     if (!base) {
-        showStatus(@"Patch-Test: UnityFramework nicht gefunden (Base = 0)");
+        showStatus(@"Tweak v4: UnityFramework nicht gefunden");
         return;
     }
-    uint8_t *p = (uint8_t *)(base + 0x4ADCA10);   // TryStartReload
-    char hex[9];
-    snprintf(hex, sizeof(hex), "%02X%02X%02X%02X", p[0], p[1], p[2], p[3]);
-
-    MemoryPatch patch = MemoryPatch::createWithHex("UnityFramework", 0x4ADCA10, std::string(hex));
-    bool valid = patch.isValid();
-    bool ok = valid ? patch.Modify() : false;
-
-    showStatus([NSString stringWithFormat:@"Tweak v3\nBase: 0x%lx\nBytes: %s\nvalid: %d  Modify: %d",
-                (unsigned long)base, hex, valid, ok]);
-}
-
-void setup() {
-
-  [switches addOffsetSwitch:NSSENCRYPT("Reload blockieren")
-    description:NSSENCRYPT("Blockiert TryStartReload und TryForceReload")
-    offsets: {
-      ENCRYPTOFFSET("0x4ADCA10"),
-      ENCRYPTOFFSET("0x4ADE150")
-    }
-    bytes: {
-      ENCRYPTHEX("C0035FD6"),
-      ENCRYPTHEX("C0035FD6")
-    }
-  ];
-
-  [switches addOffsetSwitch:NSSENCRYPT("Sofort nachladen")
-    description:NSSENCRYPT("Setzt die Nachladezeiten auf 0")
-    offsets: {
-      ENCRYPTOFFSET("0x4AE5760"),
-      ENCRYPTOFFSET("0x4ADD410"),
-      ENCRYPTOFFSET("0x4AE1494")
-    }
-    bytes: {
-      ENCRYPTHEX("00E4002FC0035FD6"),
-      ENCRYPTHEX("00E4002FC0035FD6"),
-      ENCRYPTHEX("00E4002FC0035FD6")
-    }
-  ];
-
-  [switches addOffsetSwitch:NSSENCRYPT("Grosses Magazin")
-    description:NSSENCRYPT("Magazingroesse 9999")
-    offsets: {
-      ENCRYPTOFFSET("0x4ADD0B4")
-    }
-    bytes: {
-      ENCRYPTHEX("E0E18452C0035FD6")
-    }
-  ];
-
-  [switches addSliderSwitch:NSSENCRYPT("Mech Speed Multiplikator")
-    description:NSSENCRYPT("Multipliziert RunSpeed (Wirkung ungetestet)")
-    minimumValue:1.0
-    maximumValue:3.0
-    sliderColor:UIColorFromHex(0xBD0000)
-  ];
+    showStatus([NSString stringWithFormat:
+        @"Tweak v4 (nur lesen)\n4AE5760: %@\n4ADD410: %@\n4AE1494: %@\nGepatcht = 00E4002F C0035FD6",
+        bytesAt(base, 0x4AE5760), bytesAt(base, 0x4ADD410), bytesAt(base, 0x4AE1494)]);
 }
 
 void setupMenu() {
-
   menu = [[Menu alloc]
             initWithTitle:NSSENCRYPT("Mech Arena - Mod Menu")
             titleColor:[UIColor whiteColor]
             titleFont:NSSENCRYPT("Copperplate-Bold")
-            credits:NSSENCRYPT("Mod Menu eingerichtet fuer Mech Arena.\n\nViel Spass!")
+            credits:NSSENCRYPT("Test")
             headerColor:UIColorFromHex(0xBD0000)
             switchOffColor:[UIColor darkGrayColor]
             switchOnColor:UIColorFromHex(0x00ADF2)
@@ -161,18 +83,13 @@ void setupMenu() {
     [menuButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
   }
 
-  // Sofort anzeigen: beweist, dass diese Version laeuft
-  showStatus(@"Tweak v3 geladen");
-
-  // Patch-Test nach 6 Sekunden
-  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 6 * NSEC_PER_SEC),
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 3 * NSEC_PER_SEC),
                  dispatch_get_main_queue(), ^{
-      runPatchTest();
+      runReadTest();
   });
+}
 
-#if ENABLE_SPEED_HOOK
-  installSpeedHook();
-#endif
+void setup() {
 }
 
 static bool menuStarted = false;
